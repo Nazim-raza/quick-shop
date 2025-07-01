@@ -17,12 +17,21 @@ const CartPage = () => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  //total price
+  // Initialize quantity for each item
+  useEffect(() => {
+    const updatedCart = cart.map((item) => ({
+      ...item,
+      quantity: item.quantity || 1,
+    }));
+    setCart(updatedCart);
+  }, []);
+
+  // total price
   const totalPrice = () => {
     try {
       let total = 0;
-      cart?.map((item) => {
-        total = total + item.price;
+      cart?.forEach((item) => {
+        total += item.price * (item.quantity || 1);
       });
       return total.toLocaleString("en-US", {
         style: "currency",
@@ -32,7 +41,8 @@ const CartPage = () => {
       console.log(error);
     }
   };
-  //detele item
+
+  // delete item
   const removeCartItem = (pid) => {
     try {
       let myCart = [...cart];
@@ -45,7 +55,29 @@ const CartPage = () => {
     }
   };
 
-  //get payment gateway token
+  // increment quantity
+  const incrementQuantity = (pid) => {
+    const updatedCart = cart.map((item) =>
+      item._id === pid
+        ? { ...item, quantity: (item.quantity || 1) + 1 }
+        : item
+    );
+    setCart(updatedCart);
+    localStorage.setItem("cart", JSON.stringify(updatedCart));
+  };
+
+  // decrement quantity
+  const decrementQuantity = (pid) => {
+    const updatedCart = cart.map((item) =>
+      item._id === pid && item.quantity > 1
+        ? { ...item, quantity: item.quantity - 1 }
+        : item
+    );
+    setCart(updatedCart);
+    localStorage.setItem("cart", JSON.stringify(updatedCart));
+  };
+
+  // get payment gateway token
   const getToken = async () => {
     try {
       const { data } = await axios.get("/api/v1/product/braintree/token");
@@ -54,11 +86,12 @@ const CartPage = () => {
       console.log(error);
     }
   };
+
   useEffect(() => {
     getToken();
   }, [auth?.token]);
 
-  //handle payments
+  // handle payments
   const handlePayment = async () => {
     try {
       setLoading(true);
@@ -77,9 +110,10 @@ const CartPage = () => {
       setLoading(false);
     }
   };
+
   return (
     <Layout>
-      <div className=" cart-page">
+      <div className="cart-page">
         <div className="row">
           <div className="col-md-12">
             <h1 className="text-center bg-light p-2 mb-1">
@@ -96,11 +130,11 @@ const CartPage = () => {
             </h1>
           </div>
         </div>
-        <div className="container ">
-          <div className="row ">
-            <div className="col-md-7  p-0 m-0">
+        <div className="container">
+          <div className="row">
+            <div className="col-md-7 p-0 m-0">
               {cart?.map((p) => (
-                <div className="row card flex-row" key={p._id}>
+                <div className="row card flex-row mb-2" key={p._id}>
                   <div className="col-md-4">
                     <img
                       src={`/api/v1/product/product-photo/${p._id}`}
@@ -112,10 +146,26 @@ const CartPage = () => {
                   </div>
                   <div className="col-md-4">
                     <p>{p.name}</p>
-                    <p>{p.description.substring(0, 30)}</p>
-                    <p>Price : {p.price}</p>
+                    <p>{p.description.substring(0, 30)}...</p>
+                    <p>Price : ${p.price}</p>
+                    <div className="d-flex align-items-center">
+                      <button
+                        className="btn btn-sm btn-secondary"
+                        onClick={() => decrementQuantity(p._id)}
+                        disabled={p.quantity === 1}
+                      >
+                        -
+                      </button>
+                      <span className="mx-2">{p.quantity || 1}</span>
+                      <button
+                        className="btn btn-sm btn-secondary"
+                        onClick={() => incrementQuantity(p._id)}
+                      >
+                        +
+                      </button>
+                    </div>
                   </div>
-                  <div className="col-md-4 cart-remove-btn">
+                  <div className="col-md-4 cart-remove-btn d-flex align-items-center">
                     <button
                       className="btn btn-danger"
                       onClick={() => removeCartItem(p._id)}
@@ -126,7 +176,7 @@ const CartPage = () => {
                 </div>
               ))}
             </div>
-            <div className="col-md-5 cart-summary ">
+            <div className="col-md-5 cart-summary">
               <h2>Cart Summary</h2>
               <p>Total | Checkout | Payment</p>
               <hr />
@@ -162,7 +212,7 @@ const CartPage = () => {
                         })
                       }
                     >
-                      Plase Login to checkout
+                      Please Login to checkout
                     </button>
                   )}
                 </div>
@@ -181,7 +231,6 @@ const CartPage = () => {
                       }}
                       onInstance={(instance) => setInstance(instance)}
                     />
-
                     <button
                       className="btn btn-primary"
                       onClick={handlePayment}
